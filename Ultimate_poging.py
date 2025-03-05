@@ -97,7 +97,7 @@ visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature",
 
 # Selectie van het uur
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
-eind_uur = huidig_uur + timedelta(hours=24)
+eind_uur = huidig_uur + timedelta(hours=23)
 unieke_tijden = sorted(df_uur_verw["tijd"].dropna().unique())
 unieke_tijden = [t for t in unieke_tijden if huidig_uur <= t <= eind_uur]
 
