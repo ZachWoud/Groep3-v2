@@ -4,7 +4,7 @@ import streamlit as st
 from folium.features import CustomIcon
 from streamlit_folium import st_folium  # Import this for Folium integration
 import folium
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # API Configuratie
 api_key = 'd5184c3b4e'
@@ -51,6 +51,9 @@ df_uur_verw['datum'] = df_uur_verw['datetime'].dt.strftime('%d-%m-%Y')
 df_uur_verw['tijd'] = df_uur_verw['datetime'].dt.strftime('%H:%M')
 df_uur_verw['tijd'] = pd.to_datetime(df_uur_verw['tijd'], format='%H:%M', errors='coerce')
 
+# Verwijder rijen met ontbrekende coördinaten
+df_uur_verw.dropna(subset=["lat", "lon"], inplace=True)
+
 # Streamlit UI
 st.title("Weerkaart Nederland")
 
@@ -95,40 +98,31 @@ df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city
 # Selectie van de visualisatietype
 visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature", "Weather"])
 
-# Selectie van het uur
-unieke_tijden = df_uur_verw["tijd"].dropna().unique()
-huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
-if huidig_uur not in unieke_tijden:
-    huidig_uur = unieke_tijden[0]  # Val terug op de eerste tijd als huidig uur ontbreekt
-selected_hour = st.select_slider("Selecteer het uur", options=sorted(unieke_tijden), value=huidig_uur, format_func=lambda t: t.strftime('%H:%M'))
-
-def create_map(df, visualisatie_optie, geselecteerde_uur):
+def create_map(df, visualisatie_optie):
     nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
-    df_filtered = df[df["tijd"] == geselecteerde_uur]
-
-    for index, row in df_filtered.iterrows():
-        if visualisatie_optie == "Weather":
-            icon_file = weather_icons.get(row['image'].lower(), "bewolkt.png")  # Default icon
-            icon_path = f"iconen-weerlive/{icon_file}"
-            popup_text = f"{row['plaats']}: {row['temp']}°C, {row['image']}"
-            
-            folium.Marker(
-                location=[row["lat"], row["lon"]],
-                popup=popup_text,
-                tooltip=row["plaats"],
-                icon=CustomIcon(icon_path, icon_size=(30, 30))
-            ).add_to(nl_map)
-        
-        elif visualisatie_optie == "Temperature":
-            temp_popup = f"{row['plaats']}: {row['temp']}°C"
-            folium.Marker(
-                location=[row["lat"], row["lon"]],
-                popup=temp_popup,
-                tooltip=row["plaats"]
-            ).add_to(nl_map)
-
+    for index, row in df.iterrows():
+        if pd.notna(row["lat"]) and pd.notna(row["lon"]):
+            if visualisatie_optie == "Weather":
+                icon_file = weather_icons.get(row['image'].lower(), "bewolkt.png")
+                icon_path = f"iconen-weerlive/{icon_file}"
+                popup_text = f"{row['plaats']}"
+                folium.Marker(
+                    location=[row["lat"], row["lon"]],
+                    popup=popup_text,
+                    tooltip=row["plaats"],
+                    icon=CustomIcon(icon_path, icon_size=(30, 30))
+                ).add_to(nl_map)
+            elif visualisatie_optie == "Temperature":
+                if not pd.isna(row['temp']):
+                    temp_popup = f"{row['plaats']}"
+                    folium.Marker(
+                        location=[row["lat"], row["lon"]],
+                        popup=temp_popup,
+                        tooltip=row["plaats"],
+                        icon=folium.DivIcon(html=f'<div style="font-size: 12pt; font-weight: bold; color: red;">{row["temp"]}°C</div>')
+                    ).add_to(nl_map)
     return nl_map
 
 # Maak en toon de kaart
-nl_map = create_map(df_uur_verw, visualization_option, selected_hour)
+nl_map = create_map(df_uur_verw, visualization_option)
 st_folium(nl_map, width=700)
