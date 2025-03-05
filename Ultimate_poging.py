@@ -100,7 +100,14 @@ unieke_tijden = sorted(df_uur_verw["tijd"].dropna().unique())
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
 eind_uur = huidig_uur + timedelta(hours=23)
 unieke_tijden = [t for t in unieke_tijden if huidig_uur <= t <= eind_uur]
-selected_hour = st.select_slider("Selecteer het uur", options=unieke_tijden, value=unieke_tijden[0], format_func=lambda t: t.strftime('%H:%M'))
+
+# Fallback oplossing
+selected_hour = huidig_uur if huidig_uur in unieke_tijden else (unieke_tijden[0] if unieke_tijden else None)
+if selected_hour is None:
+    st.error("Geen beschikbare tijden in dataset.")
+    st.stop()
+
+selected_hour = st.select_slider("Selecteer het uur", options=unieke_tijden, value=selected_hour, format_func=lambda t: t.strftime('%H:%M'))
 
 def create_map(df, visualisatie_optie, geselecteerde_uur):
     nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
