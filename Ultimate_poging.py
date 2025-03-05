@@ -51,9 +51,6 @@ df_uur_verw['datum'] = df_uur_verw['datetime'].dt.strftime('%d-%m-%Y')
 df_uur_verw['tijd'] = df_uur_verw['datetime'].dt.strftime('%H:%M')
 df_uur_verw['tijd'] = pd.to_datetime(df_uur_verw['tijd'], format='%H:%M', errors='coerce')
 
-# Verwijder rijen met ontbrekende coördinaten
-df_uur_verw.dropna(subset=["lat", "lon"], inplace=True)
-
 # Streamlit UI
 st.title("Weerkaart Nederland")
 
