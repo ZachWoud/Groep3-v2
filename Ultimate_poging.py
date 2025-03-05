@@ -122,7 +122,8 @@ def create_map(df, visualisatie_optie, geselecteerde_uur):
         elif visualisatie_optie == "Temperature":
             folium.map.Marker(
                 location=[row["lat"], row["lon"]],
-                icon=folium.DivIcon(html=f'<div style="color:red; font-weight:bold; font-size:14px;">{row["temp"]}°C</div>')
+                tooltip=row["plaats"],
+                icon=folium.DivIcon(html=f'<div style="color:red; font-weight:bold; font-size:18px;">{row["temp"]}°C</div>')
             ).add_to(nl_map)
 
     return nl_map
