@@ -4,7 +4,7 @@ import streamlit as st
 from folium.features import CustomIcon
 from streamlit_folium import st_folium  # Import this for Folium integration
 import folium
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # API Configuratie
 api_key = 'd5184c3b4e'
@@ -96,11 +96,11 @@ df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city
 visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature", "Weather"])
 
 # Selectie van het uur
-unieke_tijden = df_uur_verw["tijd"].dropna().unique()
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
-if huidig_uur not in unieke_tijden:
-    huidig_uur = unieke_tijden[0]  # Val terug op de eerste tijd als huidig uur ontbreekt
-selected_hour = st.select_slider("Selecteer het uur", options=sorted(unieke_tijden), value=huidig_uur, format_func=lambda t: t.strftime('%H:%M'))
+eind_uur = huidig_uur + timedelta(hours=24)
+unieke_tijden = df_uur_verw["tijd"].dropna().unique()
+unieke_tijden = [t for t in unieke_tijden if huidig_uur <= t <= eind_uur]
+selected_hour = st.select_slider("Selecteer het uur", options=sorted(unieke_tijden), value=unieke_tijden[0], format_func=lambda t: t.strftime('%H:%M'))
 
 def create_map(df, visualisatie_optie, geselecteerde_uur):
     nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
