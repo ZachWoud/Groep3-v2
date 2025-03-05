@@ -37,7 +37,7 @@ for city in cities:
         print(f"Error fetching data for {city}: {response.status_code}")
 
 # DataFrames
- df_liveweer = pd.DataFrame(liveweer)
+df_liveweer = pd.DataFrame(liveweer)
 df_wk_verw = pd.DataFrame(wk_verw)
 df_uur_verw = pd.DataFrame(uur_verw)
 df_api_data = pd.DataFrame(api_data)
