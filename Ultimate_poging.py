@@ -101,10 +101,9 @@ eind_uur = huidig_uur + timedelta(hours=24)
 unieke_tijden = sorted(df_uur_verw["tijd"].dropna().unique())
 unieke_tijden = [t for t in unieke_tijden if huidig_uur <= t <= eind_uur]
 
-# Zorg ervoor dat er altijd een geldige waarde is
+# Als er geen tijden zijn, gebruik fallback
 if not unieke_tijden:
-    st.error("Geen beschikbare tijden in dataset.")
-    st.stop()
+    unieke_tijden = [huidig_uur]
 
 selected_hour = st.select_slider("Selecteer het uur", options=unieke_tijden, value=unieke_tijden[0], format_func=lambda t: t.strftime('%H:%M'))
 
