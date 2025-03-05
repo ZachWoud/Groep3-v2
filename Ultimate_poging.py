@@ -48,8 +48,8 @@ df_api_data = pd.DataFrame(api_data)
 # Tijd omzetten
 df_uur_verw['datetime'] = pd.to_datetime(df_uur_verw['timestamp'], unit='s')
 df_uur_verw['datum'] = df_uur_verw['datetime'].dt.strftime('%d-%m-%Y')
-df_uur_verw['uur'] = df_uur_verw['datetime'].dt.strftime('%H:%M')
-df_uur_verw['uur'] = pd.to_datetime(df_uur_verw['uur'], format='%H:%M', errors='coerce')
+df_uur_verw['tijd'] = df_uur_verw['datetime'].dt.strftime('%H:%M')
+df_uur_verw['tijd'] = pd.to_datetime(df_uur_verw['tijd'], format='%H:%M', errors='coerce')
 
 # Streamlit UI
 st.title("Weerkaart Nederland")
@@ -96,14 +96,14 @@ df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city
 visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature", "Weather"])
 
 # Selectie van het uur
-min_uur = df_uur_verw["uur"].min()
-max_uur = df_uur_verw["uur"].max()
+unieke_tijden = df_uur_verw["tijd"].dropna().unique()
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
-tijdstippen = pd.date_range(start=min_uur, end=max_uur, periods=4).strftime('%H:%M').tolist()
-selected_hour = st.slider("Selecteer het uur", min_value=min_uur, max_value=max_uur, value=huidig_uur, format="%H:%M", step=pd.Timedelta(hours=1))
+if huidig_uur not in unieke_tijden:
+    huidig_uur = unieke_tijden[0]  # Val terug op de eerste tijd als huidig uur ontbreekt
+selected_hour = st.select_slider("Selecteer het uur", options=sorted(unieke_tijden), value=huidig_uur, format_func=lambda t: t.strftime('%H:%M'))
 
 # Filter dataframe op geselecteerd uur
-filtered_df = df_uur_verw[df_uur_verw["uur"] == selected_hour]
+filtered_df = df_uur_verw[df_uur_verw["tijd"] == selected_hour]
 
 # Maak en toon de kaart
 nl_map = create_map(filtered_df, visualization_option)
