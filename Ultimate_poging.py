@@ -58,17 +58,15 @@ df_uur_verw['datetime'] = pd.to_datetime(df_uur_verw['timestamp'], unit='s')
 df_uur_verw['datum'] = df_uur_verw['datetime'].dt.strftime('%d-%m-%Y')
 df_uur_verw['uur']   = df_uur_verw['datetime'].dt.strftime('%H:%M:%S')
 
-# Eventueel kun je daarna de hulpkolom weer weggooien:
-# df_uur_verw.drop(columns='datetime', inplace=True)
-
-df_uur_verw.head()
 
 # %%
 # Stap 3: Zet "uur" om naar een datetime.time
 df_uur_verw['uur'] = pd.to_datetime(df_uur_verw['uur'], errors='coerce')
-print(df_uur_verw.dtypes)
 
 # %%
+
+# Streamlit configuratie
+st.title("Weerkaart Nederland")
 
 # Weather condition to icon mapping
 weather_icons = {
@@ -88,7 +86,7 @@ weather_icons = {
     "zwaar bewolkt": "zwaarbewolkt.png"
 }
 
-# City coordinates for icon placements (ensure this is updated for your cities)
+# Stad coordinaten
 city_coords = {
     "Assen": [52.9929, 6.5642],
     "Lelystad": [52.5185, 5.4714],
@@ -104,53 +102,49 @@ city_coords = {
     "Rotterdam": [51.9225, 4.4792],
 }
 
-# Add lat/lon to df_liveweer
-df_liveweer["lat"] = df_liveweer["plaats"].map(lambda city: city_coords.get(city, [None, None])[0])
-df_liveweer["lon"] = df_liveweer["plaats"].map(lambda city: city_coords.get(city, [None, None])[1])
+# Voeg lat/lon toe aan df_uur_verw
+df_uur_verw["lat"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[0])
+df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[1])
 
-# Streamlit widgets to allow the user to choose visualization type
-visualization_option = st.selectbox("Select the visualization type", ["Temperature", "Weather"])
+# Selectie van de visualisatietype
+visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature", "Weather"])
 
-# Create the map based on selected visualization
-def create_map(df_liveweer, visualization_option):
+# Selectie van het uur
+min_uur = df_uur_verw["uur"].min().hour
+max_uur = df_uur_verw["uur"].max().hour
+selected_hour = st.slider("Selecteer het uur", min_uur, max_uur, min_uur)
+
+# Filter dataframe op geselecteerd uur
+filtered_df = df_uur_verw[df_uur_verw["uur"].dt.hour == selected_hour]
+
+def create_map(df, visualization_option):
     nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
-
-    for index, row in df_liveweer.iterrows():
-        if visualization_option == "Weather":
-            weather_desc = row['samenv'].lower()
-            icon_file = weather_icons.get(weather_desc, "bewolkt.png")  # Default icon for weather
-            icon_path = f"iconen-weerlive/{icon_file}"
+    
+    for index, row in df.iterrows():
+        if pd.notna(row["lat"]) and pd.notna(row["lon"]):
+            if visualization_option == "Weather":
+                weather_desc = row["image"].lower()
+                icon_file = weather_icons.get(weather_desc, "bewolkt.png")
+                icon_path = f"iconen-weerlive/{icon_file}"
+                popup_text = f"{row['plaats']}: {row['temp']}°C, {weather_desc}"
+                
+                folium.Marker(
+                    location=[row["lat"], row["lon"]],
+                    popup=popup_text,
+                    tooltip=row["plaats"],
+                    icon=CustomIcon(icon_path, icon_size=(30, 30))
+                ).add_to(nl_map)
             
-            popup_text = f"{row['plaats']}: {row['temp']}°C, {row['samenv']}"
-            
-            folium.Marker(
-                location=[row["lat"], row["lon"]],
-                popup=popup_text,
-                tooltip=row["plaats"],
-                icon=CustomIcon(icon_path, icon_size=(30, 30))
-            ).add_to(nl_map)
-
-        elif visualization_option == "Temperature":
-            temp_popup = f"Temperature: {row['temp']}°C"
-            
-            folium.Marker(
-                location=[row["lat"], row["lon"]],
-                popup=temp_popup,
-                tooltip=row["plaats"]
-            ).add_to(nl_map)
-
+            elif visualization_option == "Temperature":
+                temp_popup = f"{row['plaats']}: {row['temp']}°C"
+                folium.Marker(
+                    location=[row["lat"], row["lon"]],
+                    popup=temp_popup,
+                    tooltip=row["plaats"]
+                ).add_to(nl_map)
     return nl_map
 
-# Create the map based on the dropdown selection
-nl_map = create_map(df_liveweer, visualization_option)
-
-# Display the map in Streamlit
-st_folium(nl_map, width=700)  # Adjust width as needed
-
-# Optionally: You can add more visualizations or data below (such as graphs, tables, etc.)
-# %%
-
-# %%
-
-
+# Maak en toon de kaart
+nl_map = create_map(filtered_df, visualization_option)
+st_folium(nl_map, width=700)
 
