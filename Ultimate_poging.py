@@ -1,4 +1,3 @@
-# %%
 import requests
 import pandas as pd
 import streamlit as st
@@ -7,8 +6,7 @@ from streamlit_folium import st_folium  # Import this for Folium integration
 import folium
 from datetime import datetime
 
-
-# %%
+# API Configuratie
 api_key = 'd5184c3b4e'
 cities = [
     'Assen', 'Lelystad', 'Leeuwarden', 'Arnhem', 'Groningen', 'Maastricht', 
@@ -19,7 +17,7 @@ wk_verw = []
 uur_verw = []
 api_data = []
 
-# %%
+# Data ophalen van API
 for city in cities:
     api_url = f'https://weerlive.nl/api/weerlive_api_v2.php?key={api_key}&locatie={city}'
     response = requests.get(api_url)
@@ -38,37 +36,25 @@ for city in cities:
             uur_verw.extend(data['uur_verw'])
         if 'api_data' in data:
             api_data.extend(data['api'])
-
     else:
         print(f"Error fetching data for {city}: {response.status_code}")
 
+# Dataframes aanmaken
 df_liveweer = pd.DataFrame(liveweer)
 df_wk_verw = pd.DataFrame(wk_verw)
 df_uur_verw = pd.DataFrame(uur_verw)
 df_api_data = pd.DataFrame(api_data)
 
-# %%
-df_uur_verw.head(15)
-
-# %%
-# en 'timestamp' is een Unix time in seconden.
+# Tijd omzetten
 df_uur_verw['datetime'] = pd.to_datetime(df_uur_verw['timestamp'], unit='s')
-
-# Vervolgens kun je twee nieuwe kolommen maken: "datum" en "uur".
 df_uur_verw['datum'] = df_uur_verw['datetime'].dt.strftime('%d-%m-%Y')
-df_uur_verw['uur']   = df_uur_verw['datetime'].dt.strftime('%H:%M:%S')
+df_uur_verw['uur'] = df_uur_verw['datetime'].dt.strftime('%H:%M')
+df_uur_verw['uur'] = pd.to_datetime(df_uur_verw['uur'], format='%H:%M', errors='coerce')
 
-
-# %%
-# Stap 3: Zet "uur" om naar een datetime.time
-df_uur_verw['uur'] = pd.to_datetime(df_uur_verw['uur'], errors='coerce')
-
-# %%
-
-# Streamlit configuratie
+# Streamlit UI
 st.title("Weerkaart Nederland")
 
-# Weather condition to icon mapping
+# Weericoon mapping
 weather_icons = {
     "zonnig": "zonnig.png",
     "bewolkt": "bewolkt.png",
@@ -110,41 +96,14 @@ df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city
 visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature", "Weather"])
 
 # Selectie van het uur
-min_uur = df_uur_verw["uur"].min().hour
-max_uur = df_uur_verw["uur"].max().hour
-selected_hour = st.slider("Selecteer het uur", min_uur, max_uur, min_uur)
+min_uur = df_uur_verw["uur"].min()
+max_uur = df_uur_verw["uur"].max()
+huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
+selected_hour = st.slider("Selecteer het uur", min_uur, max_uur, huidig_uur, format="%H:%M", step=(max_uur - min_uur) / 3)
 
 # Filter dataframe op geselecteerd uur
-filtered_df = df_uur_verw[df_uur_verw["uur"].dt.hour == selected_hour]
-
-def create_map(df, visualization_option):
-    nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
-    
-    for index, row in df.iterrows():
-        if pd.notna(row["lat"]) and pd.notna(row["lon"]):
-            if visualization_option == "Weather":
-                weather_desc = row["image"].lower()
-                icon_file = weather_icons.get(weather_desc, "bewolkt.png")
-                icon_path = f"iconen-weerlive/{icon_file}"
-                popup_text = f"{row['plaats']}: {row['temp']}°C, {weather_desc}"
-                
-                folium.Marker(
-                    location=[row["lat"], row["lon"]],
-                    popup=popup_text,
-                    tooltip=row["plaats"],
-                    icon=CustomIcon(icon_path, icon_size=(30, 30))
-                ).add_to(nl_map)
-            
-            elif visualization_option == "Temperature":
-                temp_popup = f"{row['plaats']}: {row['temp']}°C"
-                folium.Marker(
-                    location=[row["lat"], row["lon"]],
-                    popup=temp_popup,
-                    tooltip=row["plaats"]
-                ).add_to(nl_map)
-    return nl_map
+filtered_df = df_uur_verw[df_uur_verw["uur"] == selected_hour]
 
 # Maak en toon de kaart
 nl_map = create_map(filtered_df, visualization_option)
 st_folium(nl_map, width=700)
-
