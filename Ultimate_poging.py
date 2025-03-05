@@ -99,7 +99,8 @@ visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature",
 min_uur = df_uur_verw["uur"].min()
 max_uur = df_uur_verw["uur"].max()
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
-selected_hour = st.slider("Selecteer het uur", min_uur, max_uur, huidig_uur, format="%H:%M", step=(max_uur - min_uur) / 3)
+tijdstippen = pd.date_range(start=min_uur, end=max_uur, periods=4).strftime('%H:%M').tolist()
+selected_hour = st.slider("Selecteer het uur", min_value=min_uur, max_value=max_uur, value=huidig_uur, format="%H:%M", step=pd.Timedelta(hours=1))
 
 # Filter dataframe op geselecteerd uur
 filtered_df = df_uur_verw[df_uur_verw["uur"] == selected_hour]
