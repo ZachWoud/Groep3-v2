@@ -96,13 +96,13 @@ df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city
 visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature", "Weather"])
 
 # Selectie van het uur
-unieke_tijden = sorted(df_uur_verw["tijd"].dropna().unique())
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
 eind_uur = huidig_uur + timedelta(hours=23)
+unieke_tijden = sorted(df_uur_verw["tijd"].dropna().unique())
 unieke_tijden = [t for t in unieke_tijden if huidig_uur <= t <= eind_uur]
 
 # Fallback oplossing
-selected_hour = huidig_uur if huidig_uur in unieke_tijden else (unieke_tijden[0] if unieke_tijden else None)
+selected_hour = next((t for t in unieke_tijden if t >= huidig_uur), unieke_tijden[0] if unieke_tijden else None)
 if selected_hour is None:
     st.error("Geen beschikbare tijden in dataset.")
     st.stop()
