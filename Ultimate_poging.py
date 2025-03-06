@@ -122,21 +122,24 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur):
             folium.map.Marker(
                 location=[row["lat"], row["lon"]],
                 tooltip=row["plaats"],
-                icon=folium.DivIcon(html=f'<div style="color:red; font-weight:bold; font-size:18px;">{row["temp"]}°C</div>')
+                icon=folium.DivIcon(
+                    html=f'<div style="color:red; font-weight:bold; font-size:18px;">{row["temp"]}°C</div>'
+                )
             ).add_to(nl_map)
         
         elif visualisatie_optie == "Precipitation":
-            # Adding precipitation as a marker
             folium.map.Marker(
                 location=[row["lat"], row["lon"]],
                 tooltip=row["plaats"],
-                icon=folium.DivIcon(html=f'<div style="color:blue; font-weight:bold; font-size:18px;">{row["neersl"]} mm</div>')
+                icon=folium.DivIcon(
+                    html=f'<div style="color:blue; font-weight:bold; font-size:18px;">{row["neersl"]} mm</div>'
+                )
             ).add_to(nl_map)
     
     return nl_map
 
-# Set all cities selected by default
-selected_cities = cities
+# Instead of setting selected_cities = cities, start with an empty list
+selected_cities = []
 
 # Checkbox interface for cities placed above the graph and below the map
 st.subheader("Select Cities to Show:")
@@ -144,7 +147,10 @@ st.subheader("Select Cities to Show:")
 cols = st.columns(3)  # Creating 3 columns for better organization
 for i, city in enumerate(cities):
     with cols[i % 3]:  # Distribute the cities over three columns
-        selected_cities.append(city) if st.checkbox(city, value=True) else selected_cities
+        # Provide a unique key for each checkbox
+        checkbox_key = f"checkbox_{city}_{i}"
+        if st.checkbox(city, value=True, key=checkbox_key):
+            selected_cities.append(city)
 
 # If no cities are selected for the graph, show a warning
 if not selected_cities:
@@ -158,9 +164,14 @@ visualization_option = st.selectbox("Select visualization", ["Temperature", "Wea
 
 unieke_tijden = df_selected_cities["tijd"].dropna().unique()
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
-if huidig_uur not in unieke_tijden:
+if huidig_uur not in unieke_tijden and len(unieke_tijden) > 0:
     huidig_uur = unieke_tijden[0]
-selected_hour = st.select_slider("Select hour", options=sorted(unieke_tijden), value=huidig_uur, format_func=lambda t: t.strftime('%H:%M'))
+selected_hour = st.select_slider(
+    "Select hour", 
+    options=sorted(unieke_tijden), 
+    value=huidig_uur, 
+    format_func=lambda t: t.strftime('%H:%M') if not pd.isnull(t) else "No time"
+)
 
 # Create the map with all cities always displayed
 nl_map = create_full_map(df_uur_verw, visualization_option, selected_hour)
