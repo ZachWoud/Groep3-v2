@@ -99,7 +99,7 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
     df_filtered = df[df["tijd"] == geselecteerde_uur]
 
     for index, row in df_filtered.iterrows():
-        # Uncomment below if you only want markers for *selected* cities on the map
+        # Uncomment below if you want only the selected cities to appear on the map
         # if row["plaats"] not in selected_cities:
         #     continue
 
@@ -172,13 +172,12 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
 # 1) Maintain selected cities in session_state
 # -----------------------------------------------------------------------------
 if "selected_cities" not in st.session_state:
-    # By default, only the first city is selected
-    st.session_state["selected_cities"] = [cities[0]]
+    st.session_state["selected_cities"] = [cities[0]]  # Only the first city selected initially
 
 selected_cities = st.session_state["selected_cities"]
 
 # -----------------------------------------------------------------------------
-# 2) Build the map & chart for the *current* selection
+# 2) Build the map & chart
 # -----------------------------------------------------------------------------
 df_selected_cities = df_uur_verw[df_uur_verw['plaats'].isin(selected_cities)]
 visualization_option = st.selectbox("Selecteer weergave", ["Temperature", "Weather", "Precipitation"])
@@ -201,6 +200,20 @@ if len(selected_cities) == 0:
     st.warning("Geen stad geselecteerd. Kies een stad onderaan de pagina om de grafiek te tonen.")
 else:
     if visualization_option in ["Temperature", "Precipitation"]:
+        # ---------------------------------------------------------------------
+        # Theming for a weather-style chart
+        # ---------------------------------------------------------------------
+        plt.rcParams['axes.facecolor'] = '#f0f8ff'   # light "AliceBlue" background for axes
+        plt.rcParams['figure.facecolor'] = '#f0f8ff' # same background for entire figure
+        plt.rcParams['axes.edgecolor'] = '#b0c4de'
+        plt.rcParams['axes.labelcolor'] = '#333333'
+        plt.rcParams['xtick.color'] = '#333333'
+        plt.rcParams['ytick.color'] = '#333333'
+        plt.rcParams['grid.color'] = '#b0c4de'
+        plt.rcParams['grid.linestyle'] = '--'
+        plt.rcParams['grid.linewidth'] = 0.5
+        plt.rcParams['axes.titlepad'] = 15
+
         fig, ax1 = plt.subplots(figsize=(10, 5))
 
         if visualization_option == "Temperature":
@@ -214,45 +227,10 @@ else:
                 ax1.plot(city_data['tijd'], city_data['temp'], label=city, linestyle='-', marker='o')
 
             ax1.tick_params(axis='y', labelcolor='tab:red')
+            ax1.set_title("Temperatuur per Stad")
 
         elif visualization_option == "Precipitation":
             for city in selected_cities:
                 city_data = df_selected_cities[df_selected_cities['plaats'] == city]
                 city_data = city_data.sort_values('tijd')
-                city_data['neersl'] = city_data['neersl'].interpolate(method='linear')
-                if city_data['neersl'].isna().all():
-                    city_data['neersl'] = 0
-
-                ax1.set_xlabel('Tijd')
-                ax1.set_ylabel('Neerslag (mm)', color='tab:blue')
-                ax1.plot(city_data['tijd'], city_data['neersl'], label=city, linestyle='-', marker='x')
-
-            ax1.set_ylim(-0.2, 8)
-            ax1.set_yticks(range(0, 9))
-            ax1.tick_params(axis='y', labelcolor='tab:blue')
-
-        ax1.xaxis.set_major_locator(mdates.AutoDateLocator())
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-
-        plt.title(f"{visualization_option} Comparison")
-        fig.legend(loc='upper right', bbox_to_anchor=(1.1, 1), bbox_transform=ax1.transAxes)
-        plt.tight_layout()
-        st.pyplot(fig)
-
-# -----------------------------------------------------------------------------
-# 3) Hide or show the checkbox section depending on the dropdown
-# -----------------------------------------------------------------------------
-if visualization_option != "Weather":
-    st.subheader("Selecteer steden")
-    st.write("Hieronder kun je de steden aanpassen. Standaard is alleen de eerste stad geselecteerd.")
-    cols = st.columns(3)
-    for i, city in enumerate(cities):
-        with cols[i % 3]:
-            key = f"checkbox_{city}_{i}"
-            checked_now = city in st.session_state["selected_cities"]
-            checkbox_value = st.checkbox(city, value=checked_now, key=key)
-
-            if checkbox_value and city not in st.session_state["selected_cities"]:
-                st.session_state["selected_cities"].append(city)
-            elif not checkbox_value and city in st.session_state["selected_cities"]:
-                st.session_state["selected_cities"].remove(city)
+                city_data['neersl'] = city_data['n
