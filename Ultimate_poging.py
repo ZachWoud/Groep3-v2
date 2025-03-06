@@ -95,17 +95,13 @@ df_uur_verw["lat"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city
 df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[1])
 
 def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
-    """Builds the Folium map. 
-       If needed, you can further filter by selected cities, 
-       or show all cities regardless of selection.
-    """
     nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
     df_filtered = df[df["tijd"] == geselecteerde_uur]
 
     for index, row in df_filtered.iterrows():
-        # (If you want only selected cities on the map, add a check like:
-        #  if row["plaats"] not in selected_cities: continue 
-        #  That way, only the chosen city markers appear.)
+        # Uncomment below if you only want markers for *selected* cities on the map
+        # if row["plaats"] not in selected_cities:
+        #     continue
 
         if visualisatie_optie == "Weather":
             icon_file = weather_icons.get(row['image'].lower(), "bewolkt.png")
@@ -173,25 +169,20 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
 
 
 # -----------------------------------------------------------------------------
-# 1) Select or remember selected cities in session state
+# 1) Maintain selected cities in session_state
 # -----------------------------------------------------------------------------
 if "selected_cities" not in st.session_state:
-    # By default, only the first city is selected.
+    # By default, only the first city is selected
     st.session_state["selected_cities"] = [cities[0]]
 
 selected_cities = st.session_state["selected_cities"]
 
 # -----------------------------------------------------------------------------
-# 2) Build the map and chart based on the *current* selection
+# 2) Build the map & chart for the *current* selection
 # -----------------------------------------------------------------------------
-
-# Filter the data for the selected cities
 df_selected_cities = df_uur_verw[df_uur_verw['plaats'].isin(selected_cities)]
-
-# Let user pick the visualization type
 visualization_option = st.selectbox("Selecteer weergave", ["Temperature", "Weather", "Precipitation"])
 
-# Let user pick the hour
 unieke_tijden = df_selected_cities["tijd"].dropna().unique()
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
 if huidig_uur not in unieke_tijden and len(unieke_tijden) > 0:
@@ -203,24 +194,19 @@ selected_hour = st.select_slider(
     format_func=lambda t: t.strftime('%H:%M') if not pd.isnull(t) else "No time"
 )
 
-# Create and display the map
 nl_map = create_full_map(df_uur_verw, visualization_option, selected_hour, selected_cities)
 st_folium(nl_map, width=700)
 
-# Plot only if there's at least one city selected
 if len(selected_cities) == 0:
     st.warning("Geen stad geselecteerd. Kies een stad onderaan de pagina om de grafiek te tonen.")
 else:
-    # Show graph only for Temperature or Precipitation
     if visualization_option in ["Temperature", "Precipitation"]:
         fig, ax1 = plt.subplots(figsize=(10, 5))
 
         if visualization_option == "Temperature":
-            # Temperature plot
             for city in selected_cities:
                 city_data = df_selected_cities[df_selected_cities['plaats'] == city]
                 city_data = city_data.sort_values('tijd')
-
                 city_data['temp'] = city_data['temp'].interpolate(method='linear')
 
                 ax1.set_xlabel('Tijd')
@@ -230,11 +216,9 @@ else:
             ax1.tick_params(axis='y', labelcolor='tab:red')
 
         elif visualization_option == "Precipitation":
-            # Precipitation plot (single axis)
             for city in selected_cities:
                 city_data = df_selected_cities[df_selected_cities['plaats'] == city]
                 city_data = city_data.sort_values('tijd')
-
                 city_data['neersl'] = city_data['neersl'].interpolate(method='linear')
                 if city_data['neersl'].isna().all():
                     city_data['neersl'] = 0
@@ -256,24 +240,19 @@ else:
         st.pyplot(fig)
 
 # -----------------------------------------------------------------------------
-# 3) Render the checkboxes *below* the map and chart
+# 3) Hide or show the checkbox section depending on the dropdown
 # -----------------------------------------------------------------------------
-st.subheader("Selecteer steden")
-st.write("Hieronder kun je de steden aanpassen. Standaard is alleen de eerste stad geselecteerd.")
-cols = st.columns(3)
-for i, city in enumerate(cities):
-    with cols[i % 3]:
-        key = f"checkbox_{city}_{i}"
+if visualization_option != "Weather":
+    st.subheader("Selecteer steden (onderaan)")
+    st.write("Hieronder kun je de steden aanpassen. Standaard is alleen de eerste stad geselecteerd.")
+    cols = st.columns(3)
+    for i, city in enumerate(cities):
+        with cols[i % 3]:
+            key = f"checkbox_{city}_{i}"
+            checked_now = city in st.session_state["selected_cities"]
+            checkbox_value = st.checkbox(city, value=checked_now, key=key)
 
-        # The checkbox is checked if this city is in the current selection
-        checked_now = city in st.session_state["selected_cities"]
-
-        # Render the checkbox with that default
-        checkbox_value = st.checkbox(city, value=checked_now, key=key)
-
-        # If the user just checked it and it's not in the list, add it
-        if checkbox_value and city not in st.session_state["selected_cities"]:
-            st.session_state["selected_cities"].append(city)
-        # If the user just unchecked it, remove it
-        elif not checkbox_value and city in st.session_state["selected_cities"]:
-            st.session_state["selected_cities"].remove(city)
+            if checkbox_value and city not in st.session_state["selected_cities"]:
+                st.session_state["selected_cities"].append(city)
+            elif not checkbox_value and city in st.session_state["selected_cities"]:
+                st.session_state["selected_cities"].remove(city)
