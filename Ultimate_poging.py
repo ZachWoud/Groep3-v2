@@ -117,11 +117,23 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur):
             ).add_to(nl_map)
 
         elif visualisatie_optie == "Temperature":
+            # Here is the updated styling for the temperature label
             folium.map.Marker(
                 location=[row["lat"], row["lon"]],
                 tooltip=row["plaats"],
                 icon=folium.DivIcon(
-                    html=f'<div style="color:red; font-weight:bold; font-size:18px;">{row["temp"]}°C</div>'
+                    html=(
+                        '<div style="'
+                        'background-color: rgba(255, 255, 255, 0.7); '  # semi-transparent white
+                        'border: 1px solid red; '                      # thin red border
+                        'border-radius: 4px; '                         # rounded corners
+                        'padding: 4px; '                               # some padding
+                        'color: red; '
+                        'font-weight: bold; '
+                        'font-size: 18px;">'
+                        f'{row["temp"]}°C'
+                        '</div>'
+                    )
                 )
             ).add_to(nl_map)
 
@@ -130,17 +142,7 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur):
                 location=[row["lat"], row["lon"]],
                 tooltip=row["plaats"],
                 icon=folium.DivIcon(
-                    html='<div style="'
-                'background-color: rgba(255, 255, 255, 0.7); '  # semi-transparent white
-                'border: 1px solid red; '                      # thin red border
-                'border-radius: 4px; '                         # slightly rounded corners
-                'padding: 4px; '                               # some padding
-                'color: red; '
-                'font-weight: bold; '
-                'font-size: 18px; '
-                '">'
-                f'{row["temp"]}°C'
-                '</div>'
+                    html=f'<div style="color:blue; font-weight:bold; font-size:18px;">{row["neersl"]} mm</div>'
                 )
             ).add_to(nl_map)
 
@@ -200,9 +202,7 @@ if selected_cities and visualization_option in ["Temperature", "Precipitation"]:
 
             ax1.set_xlabel('Tijd')
             ax1.set_ylabel('Temperatuur (°C)', color='tab:red')
-            # Legend label is now just city
-            ax1.plot(city_data['tijd'], city_data['temp'], 
-                     label=city, linestyle='-', marker='o')
+            ax1.plot(city_data['tijd'], city_data['temp'], label=city, linestyle='-', marker='o')
 
         ax1.tick_params(axis='y', labelcolor='tab:red')
 
@@ -218,9 +218,7 @@ if selected_cities and visualization_option in ["Temperature", "Precipitation"]:
 
             ax1.set_xlabel('Tijd')
             ax1.set_ylabel('Neerslag (mm)', color='tab:blue')
-            # Legend label is now just city
-            ax1.plot(city_data['tijd'], city_data['neersl'], 
-                     label=city, linestyle='-', marker='x')
+            ax1.plot(city_data['tijd'], city_data['neersl'], label=city, linestyle='-', marker='x')
 
         ax1.set_ylim(-0.2, 8)
         ax1.set_yticks(range(0, 9))
