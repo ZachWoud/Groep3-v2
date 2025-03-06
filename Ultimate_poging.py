@@ -57,7 +57,7 @@ def process_hourly_data(df):
 
 df_uur_verw = process_hourly_data(df_uur_verw)
 
-st.title("Weerkaart Nederland")
+st.title("Het weer van vandaag")
 
 weather_icons = {
     "zonnig": "zonnig.png",
@@ -261,7 +261,7 @@ else:
 # -----------------------------------------------------------------------------
 if visualization_option != "Weer":
     st.subheader("Selecteer steden")
-    st.write("Hieronder kun je de steden aanpassen. Standaard is alleen de eerste stad geselecteerd.")
+    st.write("Hieronder kun je de steden selecteren die je weergeven")
     cols = st.columns(3)
     for i, city in enumerate(cities):
         with cols[i % 3]:
