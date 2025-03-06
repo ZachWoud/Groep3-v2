@@ -2,21 +2,18 @@ import requests
 import pandas as pd
 import streamlit as st
 from folium.features import CustomIcon
-from streamlit_folium import st_folium
+from streamlit_folium import st_folium  # For Folium integration
 import folium
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # For graphing
 from datetime import datetime
 import numpy as np
-import matplotlib.dates as mdates
+import matplotlib.dates as mdates  # For date/time on the x-axis
 
 # API Configuration
 api_key = 'd5184c3b4e'
-
-# Removed Amersfoort, included Amsterdam
 cities = [
     'Assen', 'Lelystad', 'Leeuwarden', 'Arnhem', 'Groningen', 'Maastricht',
-    'Eindhoven', 'Den Helder', 'Enschede', 'Middelburg', 'Rotterdam',
-    'Amsterdam'
+    'Eindhoven', 'Den Helder', 'Enschede', 'Amersfoort', 'Middelburg', 'Rotterdam'
 ]
 
 @st.cache_data
@@ -89,9 +86,9 @@ city_coords = {
     "Eindhoven": [51.4416, 5.4697],
     "Den Helder": [52.9563, 4.7601],
     "Enschede": [52.2215, 6.8937],
+    "Amersfoort": [52.1561, 5.3878],
     "Middelburg": [51.4988, 3.6136],
     "Rotterdam": [51.9225, 4.4792],
-    "Amsterdam": [52.3676, 4.9041]
 }
 
 df_uur_verw["lat"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[0])
@@ -102,11 +99,11 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
     df_filtered = df[df["tijd"] == geselecteerde_uur]
 
     for index, row in df_filtered.iterrows():
-        # Skip rows that have missing lat/lon
-        if pd.isna(row["lat"]) or pd.isna(row["lon"]):
-            continue
-        
-        if visualisatie_optie == "Weer":
+        # If you only want markers for selected cities, uncomment:
+        # if row["plaats"] not in selected_cities:
+        #     continue
+
+        if visualisatie_optie == "Weather":
             icon_file = weather_icons.get(row['image'].lower(), "bewolkt.png")
             icon_path = f"iconen-weerlive/{icon_file}"
             popup_text = f"{row['plaats']}: {row['temp']}°C, {row['image']}"
@@ -118,7 +115,7 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
                 icon=CustomIcon(icon_path, icon_size=(30, 30))
             ).add_to(nl_map)
 
-        elif visualisatie_optie == "Temperatuur":
+        elif visualisatie_optie == "Temperature":
             folium.map.Marker(
                 location=[row["lat"], row["lon"]],
                 tooltip=row["plaats"],
@@ -143,7 +140,7 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
                 )
             ).add_to(nl_map)
 
-        elif visualisatie_optie == "Neerslag":
+        elif visualisatie_optie == "Precipitation":
             folium.map.Marker(
                 location=[row["lat"], row["lon"]],
                 tooltip=row["plaats"],
@@ -170,37 +167,51 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
 
     return nl_map
 
+# -----------------------------------------------------------------------------
+# 1) Maintain selected cities in session_state
+# -----------------------------------------------------------------------------
 if "selected_cities" not in st.session_state:
     st.session_state["selected_cities"] = [cities[0]]
+
 selected_cities = st.session_state["selected_cities"]
 
-visualization_option = st.selectbox("Selecteer weergave", ["Temperatuur", "Weer", "Neerslag"])
-
+# -----------------------------------------------------------------------------
+# 2) Build the Data & Controls (up top)
+# -----------------------------------------------------------------------------
 df_selected_cities = df_uur_verw[df_uur_verw['plaats'].isin(selected_cities)]
+visualization_option = st.selectbox("Selecteer weergave", ["Temperature", "Weather", "Precipitation"])
 
-col_map, col_chart = st.columns(2)
+unieke_tijden = df_selected_cities["tijd"].dropna().unique()
+huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
+if huidig_uur not in unieke_tijden and len(unieke_tijden) > 0:
+    huidig_uur = unieke_tijden[0]
+selected_hour = st.select_slider(
+    "Selecteer uur",
+    options=sorted(unieke_tijden),
+    value=huidig_uur,
+    format_func=lambda t: t.strftime('%H:%M') if not pd.isnull(t) else "No time"
+)
 
-with col_map:
-    unieke_tijden = df_selected_cities["tijd"].dropna().unique()
-    huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
-    if huidig_uur not in unieke_tijden and len(unieke_tijden) > 0:
-        huidig_uur = unieke_tijden[0]
-    
-    selected_hour = st.select_slider(
-        "Selecteer uur",
-        options=sorted(unieke_tijden),
-        value=huidig_uur,
-        format_func=lambda t: t.strftime('%H:%M') if not pd.isnull(t) else "No time"
-    )
-    
+# -----------------------------------------------------------------------------
+# 3) Two columns: map on the left, chart + checkboxes on the right
+# -----------------------------------------------------------------------------
+col1, col2 = st.columns(2)
+
+# Left Column: Map
+with col1:
     nl_map = create_full_map(df_uur_verw, visualization_option, selected_hour, selected_cities)
-    st_folium(nl_map, width=600)
+    st_folium(nl_map, width=700)
 
-with col_chart:
-    if not selected_cities:
-        st.warning("Geen stad geselecteerd. Vink minstens één stad aan.")
+# Right Column: Chart (if needed) + Checkboxes (if not Weather)
+with col2:
+    # If no cities selected
+    if len(selected_cities) == 0:
+        st.warning("Geen stad geselecteerd. Kies een stad hieronder om de grafiek te tonen.")
     else:
-        if visualization_option in ["Temperatuur", "Neerslag"]:
+        if visualization_option in ["Temperature", "Precipitation"]:
+            # ---------------------------------------------------------------------
+            # Theming for a weather-style chart
+            # ---------------------------------------------------------------------
             plt.rcParams['axes.facecolor'] = '#f0f8ff'
             plt.rcParams['figure.facecolor'] = '#f0f8ff'
             plt.rcParams['axes.edgecolor'] = '#b0c4de'
@@ -212,11 +223,12 @@ with col_chart:
             plt.rcParams['grid.linewidth'] = 0.5
             plt.rcParams['axes.titlepad'] = 15
 
-            fig, ax1 = plt.subplots(figsize=(7, 5))
+            fig, ax1 = plt.subplots(figsize=(8, 5))
 
-            if visualization_option == "Temperatuur":
+            if visualization_option == "Temperature":
                 for city in selected_cities:
-                    city_data = df_selected_cities[df_selected_cities['plaats'] == city].sort_values('tijd')
+                    city_data = df_selected_cities[df_selected_cities['plaats'] == city]
+                    city_data = city_data.sort_values('tijd')
                     city_data['temp'] = city_data['temp'].interpolate(method='linear')
 
                     ax1.set_xlabel('Tijd')
@@ -226,9 +238,10 @@ with col_chart:
                 ax1.tick_params(axis='y', labelcolor='tab:red')
                 ax1.set_title("Temperatuur per Stad")
 
-            elif visualization_option == "Neerslag":
+            elif visualization_option == "Precipitation":
                 for city in selected_cities:
-                    city_data = df_selected_cities[df_selected_cities['plaats'] == city].sort_values('tijd')
+                    city_data = df_selected_cities[df_selected_cities['plaats'] == city]
+                    city_data = city_data.sort_values('tijd')
                     city_data['neersl'] = city_data['neersl'].interpolate(method='linear')
                     if city_data['neersl'].isna().all():
                         city_data['neersl'] = 0
@@ -243,6 +256,8 @@ with col_chart:
                 ax1.set_title("Neerslag per Stad")
 
             ax1.grid(True)
+
+            # Hourly ticks, rotated labels:
             ax1.xaxis.set_major_locator(mdates.HourLocator(interval=1))
             ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
             plt.setp(ax1.get_xticklabels(), rotation=45, ha="right")
@@ -251,8 +266,8 @@ with col_chart:
             plt.tight_layout()
             st.pyplot(fig)
 
-with col_chart:
-    if visualization_option != "Weer":
+    # Checkboxes only if not Weather
+    if visualization_option != "Weather":
         st.subheader("Selecteer steden:")
         st.write("Standaard is alleen de eerste stad geselecteerd.")
         cols_check = st.columns(3)
@@ -261,6 +276,7 @@ with col_chart:
                 key = f"checkbox_{city}_{i}"
                 checked_now = city in st.session_state["selected_cities"]
                 checkbox_value = st.checkbox(city, value=checked_now, key=key)
+
                 if checkbox_value and city not in st.session_state["selected_cities"]:
                     st.session_state["selected_cities"].append(city)
                 elif not checkbox_value and city in st.session_state["selected_cities"]:
