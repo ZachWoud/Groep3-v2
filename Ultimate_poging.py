@@ -7,7 +7,7 @@ import folium
 import matplotlib.pyplot as plt  # For graphing
 from datetime import datetime
 import numpy as np
-import matplotlib.dates as mdates  # <-- Added for datetime formatting on the x-axis
+import matplotlib.dates as mdates  # For datetime formatting on the x-axis
 
 # API Configuration
 api_key = 'd5184c3b4e'
@@ -179,7 +179,7 @@ nl_map = create_full_map(df_uur_verw, visualization_option, selected_hour)
 # Display the map in Streamlit
 st_folium(nl_map, width=700)
 
-# Plot temperature and precipitation graphs based on selected visualization
+# Plot temperature or precipitation graphs
 if selected_cities:
     fig, ax1 = plt.subplots(figsize=(10, 5))
 
@@ -188,19 +188,18 @@ if selected_cities:
         for city in selected_cities:
             city_data = df_selected_cities[df_selected_cities['plaats'] == city]
             city_data = city_data.sort_values('tijd')
-            
+
             # Interpolation for missing temperature values
             city_data['temp'] = city_data['temp'].interpolate(method='linear')
 
             ax1.set_xlabel('Time')
             ax1.set_ylabel('Temperature (°C)', color='tab:red')
             ax1.plot(city_data['tijd'], city_data['temp'], label=f'Temperature ({city})', linestyle='-', marker='o')
-
+        
         ax1.tick_params(axis='y', labelcolor='tab:red')
 
     elif visualization_option == "Precipitation":
-        # Plot precipitation for each city
-        ax2 = ax1.twinx()
+        # **Single axis** for precipitation
         for city in selected_cities:
             city_data = df_selected_cities[df_selected_cities['plaats'] == city]
             city_data = city_data.sort_values('tijd')
@@ -212,19 +211,15 @@ if selected_cities:
             if city_data['neersl'].isna().all():
                 city_data['neersl'] = 0
 
-            ax2.set_ylabel('Precipitation (mm)', color='tab:blue')
-            ax2.plot(city_data['tijd'], city_data['neersl'], label=f'Precipitation ({city})', linestyle='-', marker='x')
+            ax1.set_xlabel('Time')
+            ax1.set_ylabel('Precipitation (mm)', color='tab:blue')
+            ax1.plot(city_data['tijd'], city_data['neersl'], label=f'Precipitation ({city})', linestyle='-', marker='x')
+        
+        ax1.tick_params(axis='y', labelcolor='tab:blue')
 
-        ax2.tick_params(axis='y', labelcolor='tab:blue')
-
-    # Format x-axis as HH:MM (for both temperature and precipitation)
+    # Format x-axis as HH:MM
     ax1.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    
-    # If we have a second y-axis, apply the same x-axis formatting
-    if visualization_option == "Precipitation":
-        ax2.xaxis.set_major_locator(mdates.AutoDateLocator())
-        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
     plt.title(f"{visualization_option} Comparison")
     fig.legend(loc='upper right', bbox_to_anchor=(1.1, 1), bbox_transform=ax1.transAxes)
