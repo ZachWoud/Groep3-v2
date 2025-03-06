@@ -195,7 +195,7 @@ if selected_cities:
         ax1.tick_params(axis='y', labelcolor='tab:red')
 
     elif visualization_option == "Precipitation":
-        # Neerslag-plot (één as, met y-lim van 0 tot 8)
+        # Neerslag-plot (één as). Ondergrens net onder 0 zodat de lijn zichtbaar is.
         for city in selected_cities:
             city_data = df_selected_cities[df_selected_cities['plaats'] == city]
             city_data = city_data.sort_values('tijd')
@@ -208,8 +208,11 @@ if selected_cities:
             ax1.set_ylabel('Neerslag (mm)', color='tab:blue')
             ax1.plot(city_data['tijd'], city_data['neersl'], label=f'Neerslag ({city})', linestyle='-', marker='x')
 
-        # Min/Max instellen op 0 resp. 8
-        ax1.set_ylim(0, 8)
+        # Stel ondergrens iets onder 0 in voor zichtbaarheid, en max op 8
+        ax1.set_ylim(-0.2, 8)
+        # Als je de ticks alleen op gehele getallen 0 t/m 8 wilt, gebruik:
+        ax1.set_yticks(range(0, 9))  # 0,1,2..8
+
         ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     # X-as formatteren als HH:MM
