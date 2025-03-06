@@ -4,15 +4,18 @@ import streamlit as st
 from folium.features import CustomIcon
 from streamlit_folium import st_folium  # Import this for Folium integration
 import folium
+import matplotlib.pyplot as plt  # For graphing
 from datetime import datetime
+import numpy as np
 
-# API Configuratie
+# API Configuration
 api_key = 'd5184c3b4e'
 cities = [
     'Assen', 'Lelystad', 'Leeuwarden', 'Arnhem', 'Groningen', 'Maastricht', 
     'Eindhoven', 'Den Helder', 'Enschede', 'Amersfoort', 'Middelburg', 'Rotterdam'
 ]
 
+# Fetch and transform weather data
 @st.cache_data
 def fetch_weather_data():
     liveweer, wk_verw, uur_verw, api_data = [], [], [], []
@@ -47,6 +50,7 @@ df_wk_verw = pd.DataFrame(wk_verw)
 df_uur_verw = pd.DataFrame(uur_verw)
 df_api_data = pd.DataFrame(api_data)
 
+# Process hourly data
 @st.cache_data
 def process_hourly_data(df):
     df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
@@ -95,16 +99,9 @@ city_coords = {
 df_uur_verw["lat"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[0])
 df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[1])
 
-visualization_option = st.selectbox("Selecteer de visualisatie", ["Temperature", "Weather"])
-
-unieke_tijden = df_uur_verw["tijd"].dropna().unique()
-huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
-if huidig_uur not in unieke_tijden:
-    huidig_uur = unieke_tijden[0]
-selected_hour = st.select_slider("Selecteer het uur", options=sorted(unieke_tijden), value=huidig_uur, format_func=lambda t: t.strftime('%H:%M'))
-
+# Map with all cities
 @st.cache_data
-def create_map(df, visualisatie_optie, geselecteerde_uur):
+def create_full_map(df, visualisatie_optie, geselecteerde_uur):
     nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
     df_filtered = df[df["tijd"] == geselecteerde_uur]
 
@@ -127,8 +124,96 @@ def create_map(df, visualisatie_optie, geselecteerde_uur):
                 tooltip=row["plaats"],
                 icon=folium.DivIcon(html=f'<div style="color:red; font-weight:bold; font-size:18px;">{row["temp"]}°C</div>')
             ).add_to(nl_map)
-
+        
+        elif visualisatie_optie == "Precipitation":
+            # Adding precipitation as a marker
+            folium.map.Marker(
+                location=[row["lat"], row["lon"]],
+                tooltip=row["plaats"],
+                icon=folium.DivIcon(html=f'<div style="color:blue; font-weight:bold; font-size:18px;">{row["neersl"]} mm</div>')
+            ).add_to(nl_map)
+    
     return nl_map
 
-nl_map = create_map(df_uur_verw, visualization_option, selected_hour)
+# Set all cities selected by default
+selected_cities = cities
+
+# Checkbox interface for cities placed above the graph and below the map
+st.subheader("Select Cities to Show:")
+
+cols = st.columns(3)  # Creating 3 columns for better organization
+for i, city in enumerate(cities):
+    with cols[i % 3]:  # Distribute the cities over three columns
+        selected_cities.append(city) if st.checkbox(city, value=True) else selected_cities
+
+# If no cities are selected for the graph, show a warning
+if not selected_cities:
+    st.warning("Select at least one city to view the weather graph.")
+
+# Filter the data for the selected cities
+df_selected_cities = df_uur_verw[df_uur_verw['plaats'].isin(selected_cities)]
+
+# Slider for time selection
+visualization_option = st.selectbox("Select visualization", ["Temperature", "Weather", "Precipitation"])
+
+unieke_tijden = df_selected_cities["tijd"].dropna().unique()
+huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
+if huidig_uur not in unieke_tijden:
+    huidig_uur = unieke_tijden[0]
+selected_hour = st.select_slider("Select hour", options=sorted(unieke_tijden), value=huidig_uur, format_func=lambda t: t.strftime('%H:%M'))
+
+# Create the map with all cities always displayed
+nl_map = create_full_map(df_uur_verw, visualization_option, selected_hour)
+
+# Display the map in Streamlit
 st_folium(nl_map, width=700)
+
+# Plot temperature and precipitation graphs based on selected visualization
+if selected_cities:
+    fig, ax1 = plt.subplots(figsize=(10, 5))
+
+    if visualization_option == "Temperature":
+        # Plot temperature for each city
+        for city in selected_cities:
+            city_data = df_selected_cities[df_selected_cities['plaats'] == city]
+
+            # Ensure time is sorted correctly
+            city_data = city_data.sort_values('tijd')
+
+            # Interpolation for missing temperature values (linear interpolation)
+            city_data['temp'] = city_data['temp'].interpolate(method='linear')
+
+            # Plot temperature for each city
+            ax1.set_xlabel('Time')
+            ax1.set_ylabel('Temperature (°C)', color='tab:red')
+            ax1.plot(city_data['tijd'], city_data['temp'], label=f'Temperature ({city})', linestyle='-', marker='o')
+
+        ax1.tick_params(axis='y', labelcolor='tab:red')
+
+    elif visualization_option == "Precipitation":
+        # Plot precipitation for each city (even if it's 0mm)
+        ax2 = ax1.twinx()
+        for city in selected_cities:
+            city_data = df_selected_cities[df_selected_cities['plaats'] == city]
+
+            # Ensure time is sorted correctly
+            city_data = city_data.sort_values('tijd')
+
+            # Interpolation for missing precipitation values (linear interpolation)
+            city_data['neersl'] = city_data['neersl'].interpolate(method='linear')
+
+            # If precipitation is zero for the entire day, make sure to plot a flat line at 0
+            if city_data['neersl'].isna().all():
+                city_data['neersl'] = 0  # If all values are NaN, set to 0 mm
+
+            # Plot precipitation for each city
+            ax2.set_ylabel('Precipitation (mm)', color='tab:blue')
+            ax2.plot(city_data['tijd'], city_data['neersl'], label=f'Precipitation ({city})', linestyle='-', marker='x')
+
+        ax2.tick_params(axis='y', labelcolor='tab:blue')
+
+    # Add title and show plot
+    plt.title(f"{visualization_option} Comparison")
+    fig.legend(loc='upper right', bbox_to_anchor=(1.1, 1), bbox_transform=ax1.transAxes)
+    plt.tight_layout()
+    st.pyplot(fig)
