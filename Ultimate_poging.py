@@ -258,7 +258,7 @@ else:
 # -----------------------------------------------------------------------------
 # 3) Render the checkboxes *below* the map and chart
 # -----------------------------------------------------------------------------
-st.subheader("Selecteer steden (onderaan)")
+st.subheader("Selecteer steden")
 st.write("Hieronder kun je de steden aanpassen. Standaard is alleen de eerste stad geselecteerd.")
 cols = st.columns(3)
 for i, city in enumerate(cities):
