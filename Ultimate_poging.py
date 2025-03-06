@@ -2,12 +2,12 @@ import requests
 import pandas as pd
 import streamlit as st
 from folium.features import CustomIcon
-from streamlit_folium import st_folium  # For Folium integration
+from streamlit_folium import st_folium
 import folium
-import matplotlib.pyplot as plt  # For graphing
+import matplotlib.pyplot as plt
 from datetime import datetime
 import numpy as np
-import matplotlib.dates as mdates  # For date/time on the x-axis
+import matplotlib.dates as mdates
 
 # API Configuration
 api_key = 'd5184c3b4e'
@@ -167,17 +167,11 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
 
     return nl_map
 
-# -----------------------------------------------------------------------------
-# 1) Maintain selected cities in session_state
-# -----------------------------------------------------------------------------
 if "selected_cities" not in st.session_state:
     st.session_state["selected_cities"] = [cities[0]]
 
 selected_cities = st.session_state["selected_cities"]
 
-# -----------------------------------------------------------------------------
-# 2) Build the map & chart
-# -----------------------------------------------------------------------------
 df_selected_cities = df_uur_verw[df_uur_verw['plaats'].isin(selected_cities)]
 visualization_option = st.selectbox("Selecteer weergave", ["Temperatuur", "Weer", "Neerslag"])
 
@@ -199,9 +193,6 @@ if len(selected_cities) == 0:
     st.warning("Geen stad geselecteerd. Kies een stad onderaan de pagina om de grafiek te tonen.")
 else:
     if visualization_option in ["Temperatuur", "Neerslag"]:
-        # ---------------------------------------------------------------------
-        # Theming for a weather-style chart
-        # ---------------------------------------------------------------------
         plt.rcParams['axes.facecolor'] = '#f0f8ff'
         plt.rcParams['figure.facecolor'] = '#f0f8ff'
         plt.rcParams['axes.edgecolor'] = '#b0c4de'
@@ -246,8 +237,6 @@ else:
             ax1.set_title("Neerslag per Stad")
 
         ax1.grid(True)
-
-        # Hourly ticks, rotated labels:
         ax1.xaxis.set_major_locator(mdates.HourLocator(interval=1))
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
         plt.setp(ax1.get_xticklabels(), rotation=45, ha="right")
@@ -256,9 +245,6 @@ else:
         plt.tight_layout()
         st.pyplot(fig)
 
-# -----------------------------------------------------------------------------
-# 3) Show or hide checkboxes
-# -----------------------------------------------------------------------------
 if visualization_option != "Weer":
     st.subheader("Selecteer steden")
     st.write("Hieronder kun je de steden selecteren die je weergeven")
