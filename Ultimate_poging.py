@@ -2,21 +2,21 @@ import requests
 import pandas as pd
 import streamlit as st
 from folium.features import CustomIcon
-from streamlit_folium import st_folium  # Import this voor Folium integratie
+from streamlit_folium import st_folium  # Import this for Folium integration
 import folium
-import matplotlib.pyplot as plt  # Voor grafieken
+import matplotlib.pyplot as plt  # For graphing
 from datetime import datetime
 import numpy as np
-import matplotlib.dates as mdates  # Voor datum/tijd op de x-as
+import matplotlib.dates as mdates  # For date/time on the x-axis
 
-# API-configuratie
+# API Configuration
 api_key = 'd5184c3b4e'
 cities = [
     'Assen', 'Lelystad', 'Leeuwarden', 'Arnhem', 'Groningen', 'Maastricht',
     'Eindhoven', 'Den Helder', 'Enschede', 'Amersfoort', 'Middelburg', 'Rotterdam'
 ]
 
-# Weerdata ophalen
+# Fetch weather data
 @st.cache_data
 def fetch_weather_data():
     liveweer, wk_verw, uur_verw, api_data = [], [], [], []
@@ -48,7 +48,7 @@ df_wk_verw = pd.DataFrame(wk_verw)
 df_uur_verw = pd.DataFrame(uur_verw)
 df_api_data = pd.DataFrame(api_data)
 
-# Uurlijkse data verwerken
+# Process hourly data
 @st.cache_data
 def process_hourly_data(df):
     df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
@@ -97,7 +97,7 @@ city_coords = {
 df_uur_verw["lat"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[0])
 df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[1])
 
-# Kaart met alle steden
+# Map with all cities
 @st.cache_data
 def create_full_map(df, visualisatie_optie, geselecteerde_uur):
     nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
@@ -136,10 +136,10 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur):
 
     return nl_map
 
-# Geselecteerde steden
+# Selected cities
 selected_cities = []
 
-# Checkbox interface voor de steden
+# Checkbox interface for the cities
 st.subheader("Selecteer steden:")
 
 cols = st.columns(3)
@@ -149,14 +149,14 @@ for i, city in enumerate(cities):
         if st.checkbox(city, value=True, key=checkbox_key):
             selected_cities.append(city)
 
-# Als er geen steden zijn geselecteerd
+# If no cities are selected
 if not selected_cities:
     st.warning("Selecteer minstens één stad om het weer te bekijken.")
 
-# Filteren op geselecteerde steden
+# Filter the data for the selected cities
 df_selected_cities = df_uur_verw[df_uur_verw['plaats'].isin(selected_cities)]
 
-# Keuze voor weergave
+# Dropdown for visualization
 visualization_option = st.selectbox("Selecteer weergave", ["Temperature", "Weather", "Precipitation"])
 
 unieke_tijden = df_selected_cities["tijd"].dropna().unique()
@@ -170,18 +170,18 @@ selected_hour = st.select_slider(
     format_func=lambda t: t.strftime('%H:%M') if not pd.isnull(t) else "No time"
 )
 
-# Kaart aanmaken
+# Create the map
 nl_map = create_full_map(df_uur_verw, visualization_option, selected_hour)
 
-# Kaart tonen
+# Show the map
 st_folium(nl_map, width=700)
 
-# Grafiek maken
-if selected_cities:
+# Show graph only for Temperature or Precipitation
+if selected_cities and visualization_option in ["Temperature", "Precipitation"]:
     fig, ax1 = plt.subplots(figsize=(10, 5))
 
     if visualization_option == "Temperature":
-        # Temperatuur-plot
+        # Temperature plot
         for city in selected_cities:
             city_data = df_selected_cities[df_selected_cities['plaats'] == city]
             city_data = city_data.sort_values('tijd')
@@ -195,7 +195,7 @@ if selected_cities:
         ax1.tick_params(axis='y', labelcolor='tab:red')
 
     elif visualization_option == "Precipitation":
-        # Neerslag-plot (één as). Ondergrens net onder 0 zodat de lijn zichtbaar is.
+        # Precipitation plot (single axis)
         for city in selected_cities:
             city_data = df_selected_cities[df_selected_cities['plaats'] == city]
             city_data = city_data.sort_values('tijd')
@@ -208,14 +208,11 @@ if selected_cities:
             ax1.set_ylabel('Neerslag (mm)', color='tab:blue')
             ax1.plot(city_data['tijd'], city_data['neersl'], label=f'Neerslag ({city})', linestyle='-', marker='x')
 
-        # Stel ondergrens iets onder 0 in voor zichtbaarheid, en max op 8
         ax1.set_ylim(-0.2, 8)
-        # Als je de ticks alleen op gehele getallen 0 t/m 8 wilt, gebruik:
-        ax1.set_yticks(range(0, 9))  # 0,1,2..8
-
+        ax1.set_yticks(range(0, 9))
         ax1.tick_params(axis='y', labelcolor='tab:blue')
 
-    # X-as formatteren als HH:MM
+    # Format x-axis as HH:MM
     ax1.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
