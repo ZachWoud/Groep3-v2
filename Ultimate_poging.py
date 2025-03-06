@@ -99,7 +99,7 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
     df_filtered = df[df["tijd"] == geselecteerde_uur]
 
     for index, row in df_filtered.iterrows():
-        # Uncomment below if you want only the selected cities to appear on the map
+        # Uncomment if you only want markers for selected cities:
         # if row["plaats"] not in selected_cities:
         #     continue
 
@@ -167,12 +167,11 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
 
     return nl_map
 
-
 # -----------------------------------------------------------------------------
 # 1) Maintain selected cities in session_state
 # -----------------------------------------------------------------------------
 if "selected_cities" not in st.session_state:
-    st.session_state["selected_cities"] = [cities[0]]  # Only the first city selected initially
+    st.session_state["selected_cities"] = [cities[0]]
 
 selected_cities = st.session_state["selected_cities"]
 
@@ -203,8 +202,8 @@ else:
         # ---------------------------------------------------------------------
         # Theming for a weather-style chart
         # ---------------------------------------------------------------------
-        plt.rcParams['axes.facecolor'] = '#f0f8ff'   # light "AliceBlue" background for axes
-        plt.rcParams['figure.facecolor'] = '#f0f8ff' # same background for entire figure
+        plt.rcParams['axes.facecolor'] = '#f0f8ff'
+        plt.rcParams['figure.facecolor'] = '#f0f8ff'
         plt.rcParams['axes.edgecolor'] = '#b0c4de'
         plt.rcParams['axes.labelcolor'] = '#333333'
         plt.rcParams['xtick.color'] = '#333333'
@@ -233,4 +232,45 @@ else:
             for city in selected_cities:
                 city_data = df_selected_cities[df_selected_cities['plaats'] == city]
                 city_data = city_data.sort_values('tijd')
-                city_data['neersl'] = city_data['n
+                # NOTE: This line needed to be on a single line (no stray newlines):
+                city_data['neersl'] = city_data['neersl'].interpolate(method='linear')
+                if city_data['neersl'].isna().all():
+                    city_data['neersl'] = 0
+
+                ax1.set_xlabel('Tijd')
+                ax1.set_ylabel('Neerslag (mm)', color='tab:blue')
+                ax1.plot(city_data['tijd'], city_data['neersl'], label=city, linestyle='-', marker='x')
+
+            ax1.set_ylim(-0.2, 8)
+            ax1.set_yticks(range(0, 9))
+            ax1.tick_params(axis='y', labelcolor='tab:blue')
+            ax1.set_title("Neerslag per Stad")
+
+        ax1.grid(True)
+
+        # Hourly ticks, rotated labels:
+        ax1.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        plt.setp(ax1.get_xticklabels(), rotation=45, ha="right")
+
+        fig.legend(loc='upper right', bbox_to_anchor=(1.1, 1), bbox_transform=ax1.transAxes)
+        plt.tight_layout()
+        st.pyplot(fig)
+
+# -----------------------------------------------------------------------------
+# 3) Show or hide checkboxes
+# -----------------------------------------------------------------------------
+if visualization_option != "Weather":
+    st.subheader("Selecteer steden (onderaan)")
+    st.write("Hieronder kun je de steden aanpassen. Standaard is alleen de eerste stad geselecteerd.")
+    cols = st.columns(3)
+    for i, city in enumerate(cities):
+        with cols[i % 3]:
+            key = f"checkbox_{city}_{i}"
+            checked_now = city in st.session_state["selected_cities"]
+            checkbox_value = st.checkbox(city, value=checked_now, key=key)
+
+            if checkbox_value and city not in st.session_state["selected_cities"]:
+                st.session_state["selected_cities"].append(city)
+            elif not checkbox_value and city in st.session_state["selected_cities"]:
+                st.session_state["selected_cities"].remove(city)
