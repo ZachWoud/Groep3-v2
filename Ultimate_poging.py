@@ -130,7 +130,17 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur):
                 location=[row["lat"], row["lon"]],
                 tooltip=row["plaats"],
                 icon=folium.DivIcon(
-                    html=f'<div style="color:blue; font-weight:bold; font-size:18px;">{row["neersl"]} mm</div>'
+                    html='<div style="'
+                'background-color: rgba(255, 255, 255, 0.7); '  # semi-transparent white
+                'border: 1px solid red; '                      # thin red border
+                'border-radius: 4px; '                         # slightly rounded corners
+                'padding: 4px; '                               # some padding
+                'color: red; '
+                'font-weight: bold; '
+                'font-size: 18px; '
+                '">'
+                f'{row["temp"]}°C'
+                '</div>'
                 )
             ).add_to(nl_map)
 
