@@ -260,7 +260,7 @@ else:
 # 3) Show or hide checkboxes
 # -----------------------------------------------------------------------------
 if visualization_option != "Weer":
-    st.subheader("Selecteer steden (onderaan)")
+    st.subheader("Selecteer steden")
     st.write("Hieronder kun je de steden aanpassen. Standaard is alleen de eerste stad geselecteerd.")
     cols = st.columns(3)
     for i, city in enumerate(cities):
