@@ -190,7 +190,9 @@ if selected_cities and visualization_option in ["Temperature", "Precipitation"]:
 
             ax1.set_xlabel('Tijd')
             ax1.set_ylabel('Temperatuur (°C)', color='tab:red')
-            ax1.plot(city_data['tijd'], city_data['temp'], label=f'Temperatuur ({city})', linestyle='-', marker='o')
+            # Legend label is now just city
+            ax1.plot(city_data['tijd'], city_data['temp'], 
+                     label=city, linestyle='-', marker='o')
 
         ax1.tick_params(axis='y', labelcolor='tab:red')
 
@@ -206,7 +208,9 @@ if selected_cities and visualization_option in ["Temperature", "Precipitation"]:
 
             ax1.set_xlabel('Tijd')
             ax1.set_ylabel('Neerslag (mm)', color='tab:blue')
-            ax1.plot(city_data['tijd'], city_data['neersl'], label=f'Neerslag ({city})', linestyle='-', marker='x')
+            # Legend label is now just city
+            ax1.plot(city_data['tijd'], city_data['neersl'], 
+                     label=city, linestyle='-', marker='x')
 
         ax1.set_ylim(-0.2, 8)
         ax1.set_yticks(range(0, 9))
