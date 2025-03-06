@@ -9,6 +9,8 @@ from datetime import datetime
 import numpy as np
 import matplotlib.dates as mdates  # For date/time on the x-axis
 
+st.set_page_config(page_title="Weerkaart Nederland", layout="wide")
+ 
 # API Configuration
 api_key = 'd5184c3b4e'
 cities = [
