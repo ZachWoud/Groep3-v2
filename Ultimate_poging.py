@@ -2,29 +2,27 @@ import requests
 import pandas as pd
 import streamlit as st
 from folium.features import CustomIcon
-from streamlit_folium import st_folium  # Import this for Folium integration
+from streamlit_folium import st_folium  # Import this voor Folium integratie
 import folium
-import matplotlib.pyplot as plt  # For graphing
+import matplotlib.pyplot as plt  # Voor grafieken
 from datetime import datetime
 import numpy as np
-import matplotlib.dates as mdates  # For datetime formatting on the x-axis
+import matplotlib.dates as mdates  # Voor datum/tijd op de x-as
 
-# API Configuration
+# API-configuratie
 api_key = 'd5184c3b4e'
 cities = [
     'Assen', 'Lelystad', 'Leeuwarden', 'Arnhem', 'Groningen', 'Maastricht',
     'Eindhoven', 'Den Helder', 'Enschede', 'Amersfoort', 'Middelburg', 'Rotterdam'
 ]
 
-# Fetch and transform weather data
+# Weerdata ophalen
 @st.cache_data
 def fetch_weather_data():
     liveweer, wk_verw, uur_verw, api_data = [], [], [], []
-
     for city in cities:
         api_url = f'https://weerlive.nl/api/weerlive_api_v2.php?key={api_key}&locatie={city}'
         response = requests.get(api_url)
-
         if response.status_code == 200:
             data = response.json()
             if 'liveweer' in data:
@@ -41,7 +39,6 @@ def fetch_weather_data():
                 api_data.extend(data['api'])
         else:
             print(f"Error fetching data for {city}: {response.status_code}")
-
     return liveweer, wk_verw, uur_verw, api_data
 
 liveweer, wk_verw, uur_verw, api_data = fetch_weather_data()
@@ -51,7 +48,7 @@ df_wk_verw = pd.DataFrame(wk_verw)
 df_uur_verw = pd.DataFrame(uur_verw)
 df_api_data = pd.DataFrame(api_data)
 
-# Process hourly data
+# Uurlijkse data verwerken
 @st.cache_data
 def process_hourly_data(df):
     df['datetime'] = pd.to_datetime(df['timestamp'], unit='s')
@@ -100,7 +97,7 @@ city_coords = {
 df_uur_verw["lat"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[0])
 df_uur_verw["lon"] = df_uur_verw["plaats"].map(lambda city: city_coords.get(city, [None, None])[1])
 
-# Map with all cities
+# Kaart met alle steden
 @st.cache_data
 def create_full_map(df, visualisatie_optie, geselecteerde_uur):
     nl_map = folium.Map(location=[52.3, 5.3], zoom_start=8)
@@ -118,7 +115,7 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur):
                 tooltip=row["plaats"],
                 icon=CustomIcon(icon_path, icon_size=(30, 30))
             ).add_to(nl_map)
-        
+
         elif visualisatie_optie == "Temperature":
             folium.map.Marker(
                 location=[row["lat"], row["lon"]],
@@ -127,7 +124,7 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur):
                     html=f'<div style="color:red; font-weight:bold; font-size:18px;">{row["temp"]}°C</div>'
                 )
             ).add_to(nl_map)
-        
+
         elif visualisatie_optie == "Precipitation":
             folium.map.Marker(
                 location=[row["lat"], row["lon"]],
@@ -136,88 +133,86 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur):
                     html=f'<div style="color:blue; font-weight:bold; font-size:18px;">{row["neersl"]} mm</div>'
                 )
             ).add_to(nl_map)
-    
+
     return nl_map
 
-# Collect selected cities
+# Geselecteerde steden
 selected_cities = []
 
-# Checkbox interface for cities placed above the graph and below the map
-st.subheader("Select Cities to Show:")
+# Checkbox interface voor de steden
+st.subheader("Selecteer steden:")
 
-cols = st.columns(3)  # Creating 3 columns for better organization
+cols = st.columns(3)
 for i, city in enumerate(cities):
     with cols[i % 3]:
         checkbox_key = f"checkbox_{city}_{i}"
         if st.checkbox(city, value=True, key=checkbox_key):
             selected_cities.append(city)
 
-# If no cities are selected for the graph, show a warning
+# Als er geen steden zijn geselecteerd
 if not selected_cities:
-    st.warning("Select at least one city to view the weather graph.")
+    st.warning("Selecteer minstens één stad om het weer te bekijken.")
 
-# Filter the data for the selected cities
+# Filteren op geselecteerde steden
 df_selected_cities = df_uur_verw[df_uur_verw['plaats'].isin(selected_cities)]
 
-# Slider for time selection
-visualization_option = st.selectbox("Select visualization", ["Temperature", "Weather", "Precipitation"])
+# Keuze voor weergave
+visualization_option = st.selectbox("Selecteer weergave", ["Temperature", "Weather", "Precipitation"])
 
 unieke_tijden = df_selected_cities["tijd"].dropna().unique()
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
 if huidig_uur not in unieke_tijden and len(unieke_tijden) > 0:
     huidig_uur = unieke_tijden[0]
 selected_hour = st.select_slider(
-    "Select hour",
+    "Selecteer uur",
     options=sorted(unieke_tijden),
     value=huidig_uur,
     format_func=lambda t: t.strftime('%H:%M') if not pd.isnull(t) else "No time"
 )
 
-# Create the map with all cities always displayed
+# Kaart aanmaken
 nl_map = create_full_map(df_uur_verw, visualization_option, selected_hour)
 
-# Display the map in Streamlit
+# Kaart tonen
 st_folium(nl_map, width=700)
 
-# Plot temperature or precipitation graphs
+# Grafiek maken
 if selected_cities:
     fig, ax1 = plt.subplots(figsize=(10, 5))
 
     if visualization_option == "Temperature":
-        # Plot temperature for each city
+        # Temperatuur-plot
         for city in selected_cities:
             city_data = df_selected_cities[df_selected_cities['plaats'] == city]
             city_data = city_data.sort_values('tijd')
 
-            # Interpolation for missing temperature values
             city_data['temp'] = city_data['temp'].interpolate(method='linear')
 
-            ax1.set_xlabel('Time')
-            ax1.set_ylabel('Temperature (°C)', color='tab:red')
-            ax1.plot(city_data['tijd'], city_data['temp'], label=f'Temperature ({city})', linestyle='-', marker='o')
-        
+            ax1.set_xlabel('Tijd')
+            ax1.set_ylabel('Temperatuur (°C)', color='tab:red')
+            ax1.plot(city_data['tijd'], city_data['temp'], label=f'Temperatuur ({city})', linestyle='-', marker='o')
+
         ax1.tick_params(axis='y', labelcolor='tab:red')
 
     elif visualization_option == "Precipitation":
-        # **Single axis** for precipitation
+        # Neerslag-plot (één as, met y-lim van 0 tot 8)
         for city in selected_cities:
             city_data = df_selected_cities[df_selected_cities['plaats'] == city]
             city_data = city_data.sort_values('tijd')
 
-            # Interpolation for missing precipitation values
             city_data['neersl'] = city_data['neersl'].interpolate(method='linear')
-
-            # If precipitation is zero for the entire day, make sure to plot a flat line at 0
             if city_data['neersl'].isna().all():
                 city_data['neersl'] = 0
 
-            ax1.set_xlabel('Time')
-            ax1.set_ylabel('Precipitation (mm)', color='tab:blue')
-            ax1.plot(city_data['tijd'], city_data['neersl'], label=f'Precipitation ({city})', linestyle='-', marker='x')
-        
+            ax1.set_xlabel('Tijd')
+            ax1.set_ylabel('Neerslag (mm)', color='tab:blue')
+            ax1.plot(city_data['tijd'], city_data['neersl'], label=f'Neerslag ({city})', linestyle='-', marker='x')
+
+        # Min/Max instellen op 0 resp. 8
+        ax1.set_ylim(0, 8)
         ax1.tick_params(axis='y', labelcolor='tab:blue')
 
-    # Format x-axis as HH:MM
+    # X-as formatteren als HH:MM
     ax1.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
