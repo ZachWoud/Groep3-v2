@@ -99,7 +99,7 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
     df_filtered = df[df["tijd"] == geselecteerde_uur]
 
     for index, row in df_filtered.iterrows():
-        # Uncomment if you only want markers for selected cities:
+        # Uncomment als je alleen markers voor geselecteerde steden wilt:
         # if row["plaats"] not in selected_cities:
         #     continue
 
@@ -171,35 +171,20 @@ def create_full_map(df, visualisatie_optie, geselecteerde_uur, selected_cities):
 if "selected_cities" not in st.session_state:
     st.session_state["selected_cities"] = [cities[0]]
 
-# -- Keuze weergave --
+# -- Keuze voor visualisatie --
 visualization_option = st.selectbox("Selecteer weergave", ["Temperatuur", "Weer", "Neerslag"])
 
-# -- Als we iets anders dan 'Weer' willen zien, laat dan de stedenselectie zien --
-if visualization_option != "Weer":
-    st.subheader("Selecteer steden")
-    st.write("Hieronder kun je de steden selecteren die je weergeven")
-    cols = st.columns(3)
-    for i, city in enumerate(cities):
-        with cols[i % 3]:
-            key = f"checkbox_{city}_{i}"
-            checked_now = city in st.session_state["selected_cities"]
-            checkbox_value = st.checkbox(city, value=checked_now, key=key)
-
-            if checkbox_value and city not in st.session_state["selected_cities"]:
-                st.session_state["selected_cities"].append(city)
-            elif not checkbox_value and city in st.session_state["selected_cities"]:
-                st.session_state["selected_cities"].remove(city)
-
-# -- Maak een dataframe gebaseerd op de huidige selectie --
+# -- Bepaal welke steden gekozen zijn voor datafilter --
 selected_cities = st.session_state["selected_cities"]
 df_selected_cities = df_uur_verw[df_uur_verw['plaats'].isin(selected_cities)]
 
-# -- Tijden ophalen en 'huidig uur' bepalen --
+# -- Verkrijg alle beschikbare tijdstippen en stel een 'huidig_uur' in --
 unieke_tijden = df_selected_cities["tijd"].dropna().unique()
 huidig_uur = datetime.now().replace(minute=0, second=0, microsecond=0)
 if huidig_uur not in unieke_tijden and len(unieke_tijden) > 0:
     huidig_uur = unieke_tijden[0]
 
+# -- Slider voor het uur --
 selected_hour = st.select_slider(
     "Selecteer uur",
     options=sorted(unieke_tijden),
@@ -207,7 +192,7 @@ selected_hour = st.select_slider(
     format_func=lambda t: t.strftime('%H:%M') if not pd.isnull(t) else "No time"
 )
 
-# -- Kaart maken --
+# -- Genereer de kaart --
 nl_map = create_full_map(df_uur_verw, visualization_option, selected_hour, selected_cities)
 st_folium(nl_map, width=700)
 
@@ -215,7 +200,7 @@ st_folium(nl_map, width=700)
 if len(selected_cities) == 0:
     st.warning("Geen stad geselecteerd. Kies een stad onderaan de pagina om de grafiek te tonen.")
 else:
-    # -- Alleen temperatuur/neerslag plotten --
+    # -- Toon alleen temperatuur- of neerslag-grafiek (niet bij 'Weer') --
     if visualization_option in ["Temperatuur", "Neerslag"]:
         plt.rcParams['axes.facecolor'] = '#f0f8ff'
         plt.rcParams['figure.facecolor'] = '#f0f8ff'
@@ -232,8 +217,7 @@ else:
 
         if visualization_option == "Temperatuur":
             for city in selected_cities:
-                city_data = df_selected_cities[df_selected_cities['plaats'] == city]
-                city_data = city_data.sort_values('tijd')
+                city_data = df_selected_cities[df_selected_cities['plaats'] == city].sort_values('tijd')
                 city_data['temp'] = city_data['temp'].interpolate(method='linear')
 
                 ax1.set_xlabel('Tijd')
@@ -245,9 +229,10 @@ else:
 
         elif visualization_option == "Neerslag":
             for city in selected_cities:
-                city_data = df_selected_cities[df_selected_cities['plaats'] == city]
-                city_data = city_data.sort_values('tijd')
+                city_data = df_selected_cities[df_selected_cities['plaats'] == city].sort_values('tijd')
                 city_data['neersl'] = city_data['neersl'].interpolate(method='linear')
+
+                # Als alle waarden NaN zijn, zet ze op 0
                 if city_data['neersl'].isna().all():
                     city_data['neersl'] = 0
 
@@ -268,3 +253,21 @@ else:
         fig.legend(loc='upper right', bbox_to_anchor=(1.1, 1), bbox_transform=ax1.transAxes)
         plt.tight_layout()
         st.pyplot(fig)
+
+# -- Steden selecteren: onderaan --
+if visualization_option != "Weer":
+    st.subheader("Selecteer steden")
+    st.write("Hieronder kun je de steden selecteren die je wilt weergeven in de grafiek.")
+
+    cols = st.columns(3)
+    for i, city in enumerate(cities):
+        with cols[i % 3]:
+            key = f"checkbox_{city}_{i}"
+            checked_now = city in st.session_state["selected_cities"]
+            checkbox_value = st.checkbox(city, value=checked_now, key=key)
+
+            # Update session_state op basis van checkbox
+            if checkbox_value and city not in st.session_state["selected_cities"]:
+                st.session_state["selected_cities"].append(city)
+            elif not checkbox_value and city in st.session_state["selected_cities"]:
+                st.session_state["selected_cities"].remove(city)
