@@ -259,15 +259,25 @@ if visualization_option != "Weer":
     st.subheader("Selecteer steden")
     st.write("Hieronder kun je de steden selecteren die je wilt weergeven in de grafiek.")
 
+    # We houden bij of er iets veranderd is
+    changed_something = False
+
     cols = st.columns(3)
     for i, city in enumerate(cities):
         with cols[i % 3]:
             key = f"checkbox_{city}_{i}"
-            checked_now = city in st.session_state["selected_cities"]
-            checkbox_value = st.checkbox(city, value=checked_now, key=key)
+            current_state = city in st.session_state["selected_cities"]
+            # Checkbox tonen
+            new_state = st.checkbox(city, value=current_state, key=key)
 
-            # Update session_state op basis van checkbox
-            if checkbox_value and city not in st.session_state["selected_cities"]:
-                st.session_state["selected_cities"].append(city)
-            elif not checkbox_value and city in st.session_state["selected_cities"]:
-                st.session_state["selected_cities"].remove(city)
+            # Als de checkbox net is veranderd, pas de session_state aan
+            if new_state != current_state:
+                changed_something = True
+                if new_state:
+                    st.session_state["selected_cities"].append(city)
+                else:
+                    st.session_state["selected_cities"].remove(city)
+
+    # Als er een verandering is, direct rerun zodat de grafiek direct wordt geüpdatet
+    if changed_something:
+        st.experimental_rerun()
